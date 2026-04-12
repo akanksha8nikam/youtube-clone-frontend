@@ -4,8 +4,7 @@ import { useRef, useState, useEffect } from "react";
 import type { ChangeEvent } from "react";
 import { useUser } from "@/lib/AuthContext";
 import axiosInstance from "@/lib/axiosinstance";
-import { useRouter } from "next/router";
-import { Gauge, Maximize, Minimize, Play, Pause, ChevronRight, ChevronLeft } from "lucide-react";
+import { Gauge, Maximize, Minimize } from "lucide-react";
 
 interface VideoPlayerProps {
   video: {
@@ -27,7 +26,6 @@ export default function VideoPlayer({
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const { user } = useUser();
-  const router = useRouter();
 
   const tapStateRef = useRef<
     Record<"left" | "center" | "right", { count: number; timer: ReturnType<typeof setTimeout> | null }>
@@ -46,7 +44,7 @@ export default function VideoPlayer({
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [effect, setEffect] = useState<null | "forward" | "backward">(null);
   const [gestureText, setGestureText] = useState("");
-  const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
+
 
   // subscription state
   const [planName, setPlanName] = useState("");
