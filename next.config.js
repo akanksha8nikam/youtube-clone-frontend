@@ -1,9 +1,8 @@
-import type { NextConfig } from "next";
-
+/** @type {import('next').NextConfig} */
 const backendUrl =
-  process.env.BACKEND_URL?.replace(/\/$/, "") || "http://localhost:5000";
+  (process.env.BACKEND_URL || "http://localhost:5000").replace(/\/$/, "");
 
-const nextConfig: NextConfig = {
+const nextConfig = {
   reactStrictMode: true,
   typescript: {
     ignoreBuildErrors: true,
@@ -25,4 +24,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+module.exports = nextConfig;
