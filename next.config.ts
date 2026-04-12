@@ -12,8 +12,8 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   env: {
-    BACKEND_URL: process.env.BACKEND_URL,
-    NEXT_PUBLIC_BACKEND_URL: process.env.NEXT_PUBLIC_BACKEND_URL,
+    BACKEND_URL: process.env.BACKEND_URL ?? "",
+    NEXT_PUBLIC_BACKEND_URL: process.env.NEXT_PUBLIC_BACKEND_URL ?? "",
   },
   async rewrites() {
     return [
