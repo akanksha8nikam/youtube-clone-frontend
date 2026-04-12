@@ -14,11 +14,13 @@ import {
 import { formatDistanceToNow } from "date-fns";
 import { useUser } from "@/lib/AuthContext";
 import axiosInstance from "@/lib/axiosinstance";
+import { useRouter } from "next/router";
 
 interface Video {
   _id: string;
   videotitle: string;
   videochanel: string;
+  filepath: string;
   views: number;
   Like: number;
   Dislike: number;
@@ -27,6 +29,7 @@ interface Video {
 
 const VideoInfo = ({ video }: { video: Video }) => {
   const { user } = useUser();
+  const router = useRouter();
 
   const [likes, setLikes] = useState(video?.Like || 0);
   const [dislikes, setDislikes] = useState(video?.Dislike || 0);
@@ -34,6 +37,8 @@ const VideoInfo = ({ video }: { video: Video }) => {
   const [isDisliked, setIsDisliked] = useState(false);
   const [isWatchLater, setIsWatchLater] = useState(false);
   const [showFullDescription, setShowFullDescription] = useState(false);
+  const [downloadLabel, setDownloadLabel] = useState("Download");
+  const [downloadUsageText, setDownloadUsageText] = useState("");
 
   // Update state when video changes
   useEffect(() => {
@@ -65,6 +70,29 @@ const VideoInfo = ({ video }: { video: Video }) => {
 
     handleViews();
   }, [user, video]);
+
+  useEffect(() => {
+    const loadDownloadStatus = async () => {
+      if (!user?._id) {
+        setDownloadUsageText("Free users: 1 download/day");
+        return;
+      }
+      try {
+        const res = await axiosInstance.get(`/download/limit/${user._id}`);
+        const data = res.data;
+        if (data.dailyLimit === null) {
+          setDownloadUsageText(`${data.plan} plan: unlimited downloads/day`);
+        } else {
+          setDownloadUsageText(
+            `${data.plan} plan: ${data.usedToday}/${data.dailyLimit} used today`
+          );
+        }
+      } catch (error) {
+        setDownloadUsageText("Free users: 1 download/day");
+      }
+    };
+    loadDownloadStatus();
+  }, [user?._id]);
 
   const handleLike = async () => {
     if (!user) return;
@@ -138,6 +166,61 @@ const VideoInfo = ({ video }: { video: Video }) => {
     }
   };
 
+  const handleDownload = async () => {
+    if (!user?._id) {
+      setDownloadLabel("Sign in required");
+      setTimeout(() => setDownloadLabel("Download"), 1200);
+      return;
+    }
+
+    try {
+      const gateRes = await axiosInstance.post(`/download/${video._id}`, {
+        userId: user._id,
+      });
+      if (!gateRes.data?.allowed) {
+        setDownloadLabel("Premium required");
+        if (gateRes.data?.premiumRequired) router.push("/subscriptions");
+        setTimeout(() => setDownloadLabel("Download"), 1500);
+        return;
+      }
+      if (user?._id) {
+        const statusRes = await axiosInstance.get(`/download/limit/${user._id}`);
+        const data = statusRes.data;
+        if (data.dailyLimit === null) {
+          setDownloadUsageText(`${data.plan} plan: unlimited downloads/day`);
+        } else {
+          setDownloadUsageText(
+            `${data.plan} plan: ${data.usedToday}/${data.dailyLimit} used today`
+          );
+        }
+      }
+    } catch (error: any) {
+      const premiumRequired = error?.response?.data?.premiumRequired;
+      setDownloadLabel(premiumRequired ? "Premium required" : "Failed");
+      if (premiumRequired) router.push("/subscriptions");
+      setTimeout(() => setDownloadLabel("Download"), 1500);
+      return;
+    }
+
+    try {
+      setDownloadLabel("Downloading...");
+      const videoUrl = `/api/proxy/${(video?.filepath || "").replace(/\\/g, "/")}`;
+      const response = await fetch(videoUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${video.videotitle || "video"}.mp4`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      setDownloadLabel("Downloaded");
+      setTimeout(() => setDownloadLabel("Download"), 1200);
+    } catch (error) {
+      setDownloadLabel("Failed");
+      setTimeout(() => setDownloadLabel("Download"), 1200);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">{video?.videotitle}</h1>
@@ -153,7 +236,6 @@ const VideoInfo = ({ video }: { video: Video }) => {
 
           <div>
             <h3 className="font-medium">{video?.videochanel}</h3>
-            <p className="text-sm text-gray-600">1.2M subscribers</p>
           </div>
 
           <Button className="ml-4">Subscribe</Button>
@@ -210,9 +292,14 @@ const VideoInfo = ({ video }: { video: Video }) => {
             Share
           </Button>
 
-          <Button variant="ghost" size="sm" className="bg-gray-100 rounded-full">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="bg-gray-100 rounded-full"
+            onClick={handleDownload}
+          >
             <Download className="w-5 h-5 mr-2" />
-            Download
+            {downloadLabel}
           </Button>
 
           <Button variant="ghost" size="icon" className="bg-gray-100 rounded-full">
@@ -220,6 +307,9 @@ const VideoInfo = ({ video }: { video: Video }) => {
           </Button>
         </div>
       </div>
+      {downloadUsageText && (
+        <p className="text-xs text-gray-600">{downloadUsageText}</p>
+      )}
 
       {/* Description */}
       <div className="bg-gray-100 rounded-lg p-4">
